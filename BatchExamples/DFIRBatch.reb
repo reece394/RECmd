@@ -1,7 +1,7 @@
 Description: DFIR RECmd Batch File
 Author: Andrew Rathbun
-Version: 2.21
-Id: 6e68cc0b-c945-428b-ab91-c02d91c877b8
+Version: 2.22
+Id: 77ae78db-4fe9-4383-9aea-ddd9ebec35cc
 Keys:
 #
 # DFIRBatch README: https://github.com/EricZimmerman/RECmd/blob/master/BatchExamples/DFIRBatch.md
@@ -3261,6 +3261,14 @@ Keys:
         Recursive: true
         Comment: "Displays artifacts relating to AnyDesk"
 
+    -
+        Description: AnyDesk
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\AnyDesk
+        Recursive: true
+        Comment: "Displays artifacts relating to AnyDesk"
+
 # https://jsac.jpcert.or.jp/archive/2023/pdf/JSAC2023_1_1_yamashige-nakatani-tanaka_en.pdf
 
 # Third Party Applications -> Atera - https://www.atera.com
@@ -3270,6 +3278,14 @@ Keys:
         HiveType: SYSTEM
         Category: Third Party Applications
         KeyPath: CurrentControlSet\Services\AteraAgent
+        Recursive: true
+        Comment: "Displays artifacts relating to Atera"
+
+    -
+        Description: Atera
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\AteraAgent
         Recursive: true
         Comment: "Displays artifacts relating to Atera"
 
@@ -3286,6 +3302,15 @@ Keys:
         Recursive: false
         Comment: "Displays artifacts relating to ConnectWise (ScreenConnect)"
 
+    -
+        Description: ConnectWise (ScreenConnect)
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\ScreenConnect Client*
+        ValueName: DisplayName
+        Recursive: false
+        Comment: "Displays artifacts relating to ConnectWise (ScreenConnect)"
+
 # https://jsac.jpcert.or.jp/archive/2023/pdf/JSAC2023_1_1_yamashige-nakatani-tanaka_en.pdf
 
 # Third Party Applications -> LogMeIn - https://www.logmein.com
@@ -3298,6 +3323,14 @@ Keys:
         Recursive: true
         Comment: "Displays artifacts relating to LogMeIn"
 
+    -
+        Description: LogMeIn
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\LogMeIn
+        Recursive: true
+        Comment: "Displays artifacts relating to LogMeIn"
+
 # https://jsac.jpcert.or.jp/archive/2023/pdf/JSAC2023_1_1_yamashige-nakatani-tanaka_en.pdf
 
 # Third Party Applications -> RemoteUtilities - https://www.remoteutilities.com/
@@ -3307,6 +3340,13 @@ Keys:
         HiveType: SYSTEM
         Category: Third Party Applications
         KeyPath: CurrentControlSet\Services\RManService
+        Recursive: true
+        Comment: "Displays artifacts relating to RemoteUtilities"
+    -
+        Description: RemoteUtilities
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\RManService
         Recursive: true
         Comment: "Displays artifacts relating to RemoteUtilities"
     -
@@ -3364,7 +3404,21 @@ Keys:
         Description: Splashtop
         HiveType: SYSTEM
         Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\SplashtopRemoteService
+        Recursive: true
+        Comment: "Displays artifacts relating to Splashtop"
+    -
+        Description: Splashtop
+        HiveType: SYSTEM
+        Category: Third Party Applications
         KeyPath: CurrentControlSet\Services\SSUService
+        Recursive: true
+        Comment: "Displays artifacts relating to Splashtop"
+    -
+        Description: Splashtop
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\SSUService
         Recursive: true
         Comment: "Displays artifacts relating to Splashtop"
     -
@@ -3401,6 +3455,14 @@ Keys:
         KeyPath: CurrentControlSet\Services\TeamViewer
         Recursive: true
         Comment: "Displays artifacts relating to TeamViewer"
+    -
+        Description: TeamViewer
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\TeamViewer
+        Recursive: true
+        Comment: "Displays artifacts relating to TeamViewer"
+
 # https://jsac.jpcert.or.jp/archive/2023/pdf/JSAC2023_1_1_yamashige-nakatani-tanaka_en.pdf
 
 # Third Party Applications -> TightVNC - https://www.tightvnc.com/
@@ -3419,6 +3481,14 @@ Keys:
         KeyPath: Software\TightVNC\Server
         Recursive: true
         Comment: "Displays artifacts relating to TightVNC"
+    -
+        Description: TightVNC
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\tvnserver
+        Recursive: true
+        Comment: "Displays artifacts relating to TightVNC"
+
 # https://jsac.jpcert.or.jp/archive/2023/pdf/JSAC2023_1_1_yamashige-nakatani-tanaka_en.pdf
 
 # Third Party Applications -> PuTTY - https://www.chiark.greenend.org.uk/~sgtatham/putty/
@@ -3489,6 +3559,13 @@ Keys:
         HiveType: SYSTEM
         Category: Third Party Applications
         KeyPath: CurrentControlSet\Services\GsServer
+        Recursive: true
+        Comment: "Displays artifacts relating to GoodSync"
+    -
+        Description: GoodSync
+        HiveType: SYSTEM
+        Category: Third Party Applications
+        KeyPath: ControlSet00*\Services\GsServer
         Recursive: true
         Comment: "Displays artifacts relating to GoodSync"
 
@@ -5062,5 +5139,28 @@ Keys:
         Comment: "Virtualize file and registry write failures to per-user locations, 0 = Disabled (Fail to Write Data), 1 = Enabled (Default)"
 
 # https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/932a34b5-48e7-44c0-b6d2-a57aadef1799
+
+
+    -
+        Description: WDigest
+        HiveType: SYSTEM
+        Category: Threat Hunting
+        KeyPath: ControlSet*\Control\SecurityProviders\WDigest
+        ValueName: UseLogonCredential
+        Recursive: false
+        Comment: "Display whether WDigest is enabled. These registry keys are worth monitoring in an environment as an attacker may wish to set it to 1 to enable Digest password support which forces “clear-text” passwords to be placed in LSASS on any version of Windows from Windows 7 / 2008R2 up to Windows 10 / 2012R2. Furthermore, Windows 8.1 / 2012 R2 and newer do not have a “UseLogonCredential” DWORD value, so the key needs to be added. The existence of the key is suspicious, if not expected."
+
+    -
+        Description: WDigest
+        HiveType: SYSTEM
+        Category: Threat Hunting
+        KeyPath: ControlSet*\Control\SecurityProviders\WDigest
+        ValueName: Negotiate
+        Recursive: false
+        Comment: "Display whether WDigest is enabled. These registry keys are worth monitoring in an environment as an attacker may wish to set it to 1 to enable Digest password support which forces “clear-text” passwords to be placed in LSASS on any version of Windows from Windows 7 / 2008R2 up to Windows 10 / 2012R2. "
+
+# https://docs.velociraptor.app/artifact_references/pages/windows.registry.wdigest/
+# https://medium.com/blue-team/preventing-mimikatz-attacks-ed283e7ebdd5
+# https://www.ired.team/offensive-security/credential-access-and-credential-dumping/forcing-wdigest-to-store-credentials-in-plaintext
 
 # More to come...stay tuned!

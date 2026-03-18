@@ -11,6 +11,7 @@ Special thanks to those who have contributed to this Batch file:
 * [esecrpm](https://github.com/esecrpm)
 * [ogmini](https://github.com/ogmini)
 * [Evangelos Dragonas (@theAtropos4n6)](https://github.com/theAtropos4n6)
+* [CERT CWATCH](https://github.com/cert-cwatch/)
 
 # Version History
 
@@ -71,6 +72,8 @@ Example entry, please follow this format:
 | 2.19 | 2025-09-02 | Added Desktop IconLayouts, DB Browser for SQLite and WinMerge Artifacts |
 | 2.20 | 2025-10-03 | Added PuTTY, CCleaner, File Shredder, Splashtop Artifacts |
 | 2.21 | 2026-01-06 | Added WOW6432Node Run Keys and Expanded Edge and Chrome Artifacts |
+| 2.22 | 2026-03-17 | Added WDigest status artifcats. Also fix some Third Party Applications missing path |
+
 # Documentation
 
 https://docs.microsoft.com/en-US/troubleshoot/windows-server/performance/windows-registry-advanced-users
