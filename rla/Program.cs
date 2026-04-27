@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Help;
-using System.CommandLine.NamingConventionBinder;
+using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -16,7 +16,7 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using ServiceStack;
-#if NET462
+#if !NET9_0_OR_GREATER
 using System.Text;
 using Alphaleonis.Win32.Filesystem;
 using Directory = Alphaleonis.Win32.Filesystem.Directory;
@@ -40,7 +40,7 @@ internal class Program
     private static RootCommand _rootCommand;
 
     private static readonly string Header =
-        $"rla version {Assembly.GetExecutingAssembly().GetName().Version}" +
+        $"rla version {Assembly.GetExecutingAssembly().GetName().Version.ToString(3)}" +
         "\r\n\r\nAuthor: Eric Zimmerman (saericzimmerman@gmail.com)" +
         "\r\nhttps://github.com/EricZimmerman/RECmd\r\n\r\nNote: Enclose all strings containing spaces with double quotes";
 
@@ -52,55 +52,68 @@ internal class Program
     {
         ExceptionlessClient.Default.Startup("fTcEOUkt1CxljTyOZfsr8AcSGQwWE4aYaYqk7cE1");
 
+        var fOpt = new Option<string>("-f")
+        {
+            Description = "File to process. Either this or -d is required"
+        };
+        var dOpt = new Option<string>("-d")
+        {
+            Description = "Directory to recursively process. Either this or -f is required"
+        };
+        var outOpt = new Option<string>("--out")
+        {
+            Description = "Directory to save updated hives to. Only dirty hives with logs applied will end up in --out directory"
+        };
+        var caOpt = new Option<bool>("--ca")
+        {
+            Description = "When true, always copy hives to --out directory, even if they aren't dirty",
+            DefaultValueFactory = _ => true
+        };
+        var cnOpt = new Option<bool>("--cn")
+        {
+            Description = "When true, compress names for profile based hives",
+            DefaultValueFactory = _ => true
+        };
+        var nopOpt = new Option<bool>("--nop")
+        {
+            Description = "When true, do not recreate paths where the hives were located",
+            DefaultValueFactory = _ => false
+        };
+        var debugOpt = new Option<bool>("--debug")
+        {
+            Description = "Show debug information during processing",
+            DefaultValueFactory = _ => false
+        };
+        var traceOpt = new Option<bool>("--trace")
+        {
+            Description = "Show trace information during processing",
+            DefaultValueFactory = _ => false
+        };
+        
         _rootCommand = new RootCommand
         {
-            new Option<string>(
-                "-f",
-                "Hive to process. -f or -d is required"),
-            new Option<string>(
-                "-d",
-                "Directory to look for hives (recursively). -f or -d is required"),
-
-            new Option<string>(
-                "--out",
-                "Directory to save updated hives to. Only dirty hives with logs applied will end up in --out directory"),
-
-            new Option<bool>(
-                "--ca",
-                () => true,
-                "When true, always copy hives to --out directory, even if they aren't dirty"),
-
-            new Option<bool>(
-                "--cn",
-                () => true,
-                "When true, compress names for profile based hives"),
-
-            new Option<bool>(
-                "--nop",
-                () => false,
-                "When true, do not recreate paths where the hives were located"),
-
-            new Option<bool>(
-                "--debug",
-                () => false,
-                "Show debug information during processing"),
-
-            new Option<bool>(
-                "--trace",
-                () => false,
-                "Show trace information during processing")
+           fOpt,
+           dOpt,
+           outOpt,
+           caOpt,
+           cnOpt,
+           nopOpt,
+           debugOpt,
+           traceOpt
         };
 
         _rootCommand.Description = Header + "\r\n\r\n" + Footer;
 
-        _rootCommand.Handler = CommandHandler.Create(DoWork);
-
-        await _rootCommand.InvokeAsync(args);
+        _rootCommand.SetAction(result => DoWork(result.GetValue(fOpt), result.GetValue(dOpt), result.GetValue(outOpt),
+            result.GetValue(caOpt), result.GetValue(cnOpt), result.GetValue(nopOpt), result.GetValue(debugOpt),
+            result.GetValue(traceOpt)));
+            
+        var foo = _rootCommand.Parse(args).InvokeAsync();
 
         Log.CloseAndFlush();
     }
 
-#if NET6_0_OR_GREATER
+#if NET9_0_OR_GREATER
     static IEnumerable<string> FindFiles(string directory, IEnumerable<string> masks, HashSet<string> ignoreMasks, EnumerationOptions options,long minimumSize = 0)
     {
         foreach (var file in masks.AsParallel().SelectMany(searchPattern => Directory.EnumerateFiles(directory, searchPattern, options)))
@@ -153,13 +166,9 @@ internal class Program
         {
             if (@out.IsNullOrEmpty())
             {
-                var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
-                var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
-
-                helpBld.Write(hc);
-
-                Console.WriteLine();
-                Log.Warning("--out is required. Exiting");
+                var aaa = new CustomHelpAction(new HelpAction());
+                aaa.Invoke(_rootCommand.Parse("--out is required. Exiting"));
+                
                 Console.WriteLine();
                 return;
             }
@@ -196,7 +205,7 @@ internal class Program
 
             IEnumerable<string> files;
 
-#if NET462
+#if !NET9_0_OR_GREATER
             var okFileParts = new HashSet<string>();
             okFileParts.Add("USRCLASS");
             okFileParts.Add("NTUSER");
@@ -333,7 +342,7 @@ internal class Program
             files =
                 Directory.EnumerateFileSystemEntries(d, dirEnumOptions, directoryEnumerationFilters);
 
-#elif NET6_0_OR_GREATER
+#elif NET9_0_OR_GREATER
             var enumerationOptions = new EnumerationOptions
             {
                 IgnoreInaccessible = true,
@@ -394,10 +403,9 @@ internal class Program
         }
         else
         {
-            var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
-            var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
+            var aaa = new CustomHelpAction(new HelpAction());
+            aaa.Invoke(_rootCommand.Parse(""));
 
-            helpBld.Write(hc);
             return;
         }
 
@@ -482,9 +490,9 @@ internal class Program
                     }
 
 
-#if NET462
+#if !NET9_0_OR_GREATER
                     var logFiles = Directory.GetFiles(dirname, $"{hiveBase}.LOG?");
-#elif NET6_0_OR_GREATER
+#elif NET9_0_OR_GREATER
      var en = new EnumerationOptions
                     {
                      //   IgnoreInaccessible = true,
@@ -649,5 +657,24 @@ internal class Program
 
         Log.Information("Total processing time: {TotalSeconds:N3} seconds", _sw.Elapsed.TotalSeconds);
         Console.WriteLine();
+    }
+    
+    private class CustomHelpAction : SynchronousCommandLineAction
+    {
+        private readonly HelpAction _defaultHelp;
+
+        public CustomHelpAction(HelpAction action)
+        {
+            _defaultHelp = action;
+        }
+
+        public override int Invoke(ParseResult parseResult)
+        {
+            var result = _defaultHelp.Invoke(parseResult);
+
+            Log.Warning("{Msg}", string.Join(" ",parseResult.Tokens));
+
+            return result;
+        }
     }
 }

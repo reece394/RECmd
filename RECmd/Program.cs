@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Help;
-using System.CommandLine.NamingConventionBinder;
+using System.CommandLine.Invocation;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -36,7 +36,7 @@ using ServiceStack.Text;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using CsvWriter = CsvHelper.CsvWriter;
-#if NET462
+#if !NET9_0_OR_GREATER
 using Directory = Alphaleonis.Win32.Filesystem.Directory;
 using File = Alphaleonis.Win32.Filesystem.File;
 using FileInfo = Alphaleonis.Win32.Filesystem.FileInfo;
@@ -73,7 +73,7 @@ internal class Program
     private static RootCommand _rootCommand;
 
     private static readonly string Header =
-        $"RECmd version {Assembly.GetExecutingAssembly().GetName().Version}" +
+        $"RECmd version {Assembly.GetExecutingAssembly().GetName().Version.ToString(3)}" +
         "\r\n\r\nAuthor: Eric Zimmerman (saericzimmerman@gmail.com)" +
         "\r\nhttps://github.com/EricZimmerman/RECmd\r\n\r\nNote: Enclose all strings containing spaces (and all RegEx) with double quotes";
 
@@ -138,144 +138,210 @@ internal class Program
         {
             Directory.CreateDirectory(_pluginsDir);
         }
-
-        _rootCommand = new RootCommand
+        
+        var fOpt = new Option<string>("-f")
         {
-            new Option<string>(
-                "-d",
-                "Directory to look for hives (recursively). -f or -d is required"),
-
-            new Option<string>(
-                "-f",
-                "Hive to search. -f or -d is required"),
-
-            new Option<string>(
-                "--kn",
-                "Display details for key name. Includes subkeys and values"),
-
-            new Option<string>(
-                "--vn",
-                "Value name. Only this value will be dumped"),
-
-            new Option<string>(
-                "--bn",
-                "Use settings from supplied file to find keys/values. See included sample file for examples"),
-
-            new Option<string>(
-                "--csv",
-                "Directory to save CSV formatted results to"),
-            
-            new Option<string>(
-                "--csvf",
-                "File name to save CSV formatted results to. When present, overrides default name"),
-
-            new Option<string>(
-                "--saveTo",
-                "Saves --vn value data in binary form to file. Expects path to a FILE"),
-
-            new Option<string>(
-                "--json",
-                "Export --kn to directory specified by --json. Ignored when --vn is specified"),
-
-            new Option<string>(
-                "--jsonf",
-                "When true, compress names for profile based hives"),
-            
-            new Option<bool>(
-                "--details",
-                () => false,
-                "Show more details when displaying results"),
-
-            new Option<int>(
-                "--base64",
-                "Find Base64 encoded values with size >= Base64 (specified in bytes)"),
-
-            new Option<int>(
-                "--minSize",
-                "Find values with data size >= MinSize (specified in bytes)"),
-
-            new Option<string>(
-                "--sa",
-                "Search for <string> in keys, values, data, and slack"),
-
-            new Option<string>(
-                "--sk",
-                "Search for <string> in value record's key names"),
-
-            new Option<string>(
-                "--sv",
-                "Search for <string> in value record's value names"),
-
-            new Option<string>(
-                "--sd",
-                "Search for <string> in value record's value data"),
-
-            new Option<string>(
-                "--ss",
-                "Search for <string> in value record's value slack"),
-            
-            new Option<bool>(
-                "--literal",
-                () => false,
-                "If true, --sd and --ss search value will not be interpreted as ASCII or Unicode byte strings"),
-
-            new Option<bool>(
-                "--nd",
-                () => false,
-                "If true, do not show data when using --sd or --ss"),
-
-            new Option<bool>(
-                "--regex",
-                () => false,
-                "If present, treat <string> in --sk, --sv, --sd, and --ss as a regular expression"),
-
-            new Option<string>(
-                "--dt",
-                getDefaultValue:()=>"yyyy-MM-dd HH:mm:ss.fffffff",
-                "The custom date/time format to use when displaying time stamps"),
-            
-            new Option<bool>(
-                "--nl",
-                () => false,
-                "When true, allow transaction log files to not exist for dirty hives"),
-
-            new Option<bool>(
-                "--recover",
-                () => false,
-                "If true, recover deleted keys/values"),
-
-            new Option<bool>(
-                "--vss",
-                () => false,
-                "Process all Volume Shadow Copies that exist on drive specified by -f or -d"),
-
-            new Option<bool>(
-                "--dedupe",
-                () => false,
-                "Deduplicate -f or -d & VSCs based on SHA-1. First file found wins"),
-
-            new Option<bool>(
-                "--sync",
-                () => false,
-                "If true, the latest batch files from https://github.com/EricZimmerman/RECmd/tree/master/BatchExamples are downloaded and local files updated"),
-
-            new Option<bool>(
-                "--debug",
-                () => false,
-                "Show debug information during processing"),
-
-            new Option<bool>(
-                "--trace",
-                () => false,
-                "Show trace information during processing")
+            Description = "Hive to search. -f or -d is required"
+        };
+        
+        var dOpt = new Option<string>("-d")
+        {
+            Description = "Directory to look for hives (recursively). -f or -d is required"
+        };
+        
+        var knOpt = new Option<string>("--kn")
+        {
+            Description = "Display details for key name. Includes subkeys and values"
+        };
+        
+        var vnOpt = new Option<string>("--vn")
+        {
+            Description = "Value name. Only this value will be dumped"
+        };
+        var bnOpt = new Option<string>("--bn")
+        {
+            Description = "Use settings from supplied file to find keys/values. See included sample file for examples"
+        };
+        
+        var csvOpt = new Option<string>(
+            "--csv")
+        {
+            Description = "Directory to save CSV formatted results to. Be sure to include the full path in double quotes"
+        
         };
 
-        _rootCommand.Description = Header + "\r\n\r\n" + Footer;
-
-        _rootCommand.Handler = CommandHandler.Create(DoWork);
-
-        await _rootCommand.InvokeAsync(args);
+        var csvfOpt = new Option<string>(
+            "--csvf")
+        {
+            Description   = "File name to save CSV formatted results to. When present, overrides default name\r\n"
+        };
         
+        var saveToOpt = new Option<string>(
+            "--saveTo")
+        {
+            Description = "Saves --vn value data in binary form to file. Expects path to a FILE"
+        
+        };
+        
+        var jsonOpt = new Option<string>(
+            "--json")
+        {
+            Description = "Directory to save JSON formatted results to. Be sure to include the full path in double quotes"
+        
+        };
+
+        var jsonfOpt = new Option<string>(
+            "--jsonf")
+        {
+            Description   = "File name to save JSON formatted results to. When present, overrides default name"
+        };
+        
+        
+        
+        var nlOpt = new Option<bool>("--nl")
+        {
+            Description = "When true, allow transaction log files to not exist for dirty hives",
+            DefaultValueFactory = _ => false
+        };
+        
+        var debugOpt = new Option<bool>("--debug")
+        {
+            Description = "Show debug information during processing",
+            DefaultValueFactory = _ => false
+        };
+        var traceOpt = new Option<bool>("--trace")
+        {
+            Description = "Show trace information during processing",
+            DefaultValueFactory = _ => false
+        };
+
+        var vssOpt = new Option<bool>("--vss")
+        {
+            Description = "Process all Volume Shadow Copies that exist on drive specified by -f or -d",
+            DefaultValueFactory = _ => false
+        };
+        
+        var dedupeOpt = new Option<bool>("--dedupe")
+        {
+            Description = "Deduplicate -f or -d & VSCs based on SHA-1. First file found wins",
+            DefaultValueFactory = _ => false
+        };
+        
+        var dtOpt = new Option<string>(
+            "--dt"){
+            Description =        "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss.fffffff",
+            DefaultValueFactory = _ => "yyyy-MM-dd HH:mm:ss.fffffff"
+        };
+
+        
+        var syncOpt = new Option<bool>("--sync")
+        {
+            Description = "Deduplicate If true, the latest batch files from https://github.com/EricZimmerman/RECmd/tree/master/BatchExamples are downloaded and local files updated or -d & VSCs based on SHA-1. First file found wins",
+            DefaultValueFactory = _ => false
+        };
+        
+        var recoverOpt = new Option<bool>("--recover")
+        {
+            Description = "If true, recover deleted keys/values. Default is true",
+            DefaultValueFactory = _ => true
+        };
+        
+        var regexOpt = new Option<bool>("--regex")
+        {
+            Description = "If present, treat <string> in --sk, --sv, --sd, and --ss as a regular expression",
+            DefaultValueFactory = _ => false
+        };
+        
+        var ndOpt = new Option<bool>("--nd")
+        {
+            Description = "If true, do not show data when using --sd or --ss",
+            DefaultValueFactory = _ => false
+        };
+        
+        var detailsOpt = new Option<bool>("--details")
+        {
+            Description = "Show more details when displaying results",
+            DefaultValueFactory = _ => false
+        };
+        
+        var literalOpt = new Option<bool>("--literal")
+        {
+            Description = "If true, --sd and --ss search value will not be interpreted as ASCII or Unicode byte strings",
+            DefaultValueFactory = _ => false
+        };
+        
+        var base64Opt = new Option<int>("--base64")
+        {
+            Description = "Find Base64 encoded values with size >= Base64 (specified in bytes)",
+        };
+        var minSizeOpt = new Option<int>("--minSize")
+        {
+            Description = "Find values with data size >= MinSize (specified in bytes)",
+        };
+        
+        var saOpt = new Option<string>("--sa")
+        {
+            Description = "Search for <string> in keys, values, data, and slack",
+        };
+        var skOpt = new Option<string>("--sk")
+        {
+            Description = "Search for <string> in value record's key names",
+        };
+        var svOpt = new Option<string>("--sv")
+        {
+            Description = "Search for <string> in value record's value names",
+        };
+        var sdOpt = new Option<string>("--minSize")
+        {
+            Description = "Search for <string> in value record's value data",
+        };
+        var ssOpt = new Option<string>("--minSize")
+        {
+            Description = "Search for <string> in value record's value slack",
+        };
+        
+        _rootCommand = new RootCommand
+        {
+            fOpt,
+            dOpt,
+            knOpt,
+            vnOpt,
+            bnOpt,
+            csvOpt,
+            csvfOpt,
+            saveToOpt,
+            jsonOpt,
+            jsonfOpt,
+            detailsOpt,
+            base64Opt,
+          minSizeOpt,
+          saOpt,
+          skOpt,
+          svOpt,
+          sdOpt,
+          ssOpt,
+          literalOpt,
+          ndOpt,
+          regexOpt,
+          dtOpt,
+          nlOpt,
+          recoverOpt,
+          vssOpt,
+          dedupeOpt,
+          syncOpt,
+          debugOpt,
+          traceOpt
+        };
+
+        _rootCommand.SetAction(result => DoWork(result.GetValue(dOpt), result.GetValue(fOpt), result.GetValue(knOpt),
+            result.GetValue(vnOpt), result.GetValue(bnOpt), result.GetValue(csvOpt), result.GetValue(csvfOpt),
+            result.GetValue(saveToOpt),result.GetValue(jsonOpt),result.GetValue(jsonfOpt),result.GetValue(detailsOpt),result.GetValue(base64Opt),
+            result.GetValue(minSizeOpt),result.GetValue(saOpt),result.GetValue(skOpt),result.GetValue(svOpt),result.GetValue(sdOpt),result.GetValue(ssOpt),result.GetValue(literalOpt),
+            result.GetValue(ndOpt),result.GetValue(regexOpt),result.GetValue(dtOpt),result.GetValue(nlOpt),result.GetValue(recoverOpt),result.GetValue(vssOpt),result.GetValue(dedupeOpt),
+            result.GetValue(syncOpt),result.GetValue(debugOpt),result.GetValue(traceOpt)));
+            
+        var foo = _rootCommand.Parse(args).InvokeAsync();
+
         Log.CloseAndFlush();
     }
 
@@ -311,7 +377,7 @@ internal class Program
         }
     }
     
-#if NET6_0_OR_GREATER
+#if NET9_0_OR_GREATER
     
     static IEnumerable<string> FindFiles(string directory, IEnumerable<string> masks, HashSet<string> ignoreMasks, EnumerationOptions options,long minimumSize = 0)
     {
@@ -500,10 +566,11 @@ internal class Program
             if (CheckMinSwitches(sk, sv, sd, ss, sa, kn, minSize, base64, bn) == false)
             {
                 Console.WriteLine();
-                Log.Error("One of the following switches is required: --sk | --sv | --sd | --ss | --kn | --Base64 | --MinSize | --bn");
+                var aaa = new CustomHelpAction(new HelpAction());
+                aaa.Invoke(_rootCommand.Parse("One of the following switches is required: --sk | --sv | --sd | --ss | --kn | --Base64 | --MinSize | --bn"));
+                
                 Console.WriteLine();
-                Console.WriteLine();
-                Log.Information("Verify the command line and try again");
+                
                 return;
             }
 
@@ -526,7 +593,7 @@ internal class Program
 
             IEnumerable<string> files2;
 
-#if NET462
+#if !NET9_0_OR_GREATER
             
             var enumerationFilters = new DirectoryEnumerationFilters
             {
@@ -752,10 +819,9 @@ internal class Program
         }
         else
         {
-            var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
-            var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
+            var aaa = new CustomHelpAction(new HelpAction());
+            aaa.Invoke(_rootCommand.Parse(""));
 
-            helpBld.Write(hc);
 
             return;
         }
@@ -2813,6 +2879,25 @@ internal class Program
                 default:
                     return base.ConvertToString(value, row, memberMapData);
             }
+        }
+    }
+    
+    private class CustomHelpAction : SynchronousCommandLineAction
+    {
+        private readonly HelpAction _defaultHelp;
+
+        public CustomHelpAction(HelpAction action)
+        {
+            _defaultHelp = action;
+        }
+
+        public override int Invoke(ParseResult parseResult)
+        {
+            var result = _defaultHelp.Invoke(parseResult);
+
+            Log.Warning("{Msg}", string.Join(" ",parseResult.Tokens));
+
+            return result;
         }
     }
 }
