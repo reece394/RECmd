@@ -236,7 +236,7 @@ internal class Program
         
         var syncOpt = new Option<bool>("--sync")
         {
-            Description = "Deduplicate If true, the latest batch files from https://github.com/EricZimmerman/RECmd/tree/master/BatchExamples are downloaded and local files updated or -d & VSCs based on SHA-1. First file found wins",
+            Description = "If true, the latest batch files from https://github.com/EricZimmerman/RECmd/tree/master/BatchExamples are downloaded and local files updated",
             DefaultValueFactory = _ => false
         };
         
@@ -291,29 +291,29 @@ internal class Program
         {
             Description = "Search for <string> in value record's value names",
         };
-        var sdOpt = new Option<string>("--minSize")
+        var sdOpt = new Option<string>("--sd")
         {
             Description = "Search for <string> in value record's value data",
         };
-        var ssOpt = new Option<string>("--minSize")
+        var ssOpt = new Option<string>("--ss")
         {
             Description = "Search for <string> in value record's value slack",
         };
         
         _rootCommand = new RootCommand
         {
-            fOpt,
-            dOpt,
-            knOpt,
-            vnOpt,
-            bnOpt,
-            csvOpt,
-            csvfOpt,
-            saveToOpt,
-            jsonOpt,
-            jsonfOpt,
-            detailsOpt,
-            base64Opt,
+          fOpt,
+          dOpt,
+          knOpt,
+          vnOpt,
+          bnOpt,
+          csvOpt,
+          csvfOpt,
+          saveToOpt,
+          jsonOpt,
+          jsonfOpt,
+          detailsOpt,
+          base64Opt,
           minSizeOpt,
           saOpt,
           skOpt,
@@ -528,10 +528,9 @@ internal class Program
             if (CheckMinSwitches(sk, sv, sd, ss, sa, kn, minSize, base64, bn) == false)
             {
                 Console.WriteLine();
-                Log.Error("One of the following switches is required: --sa | --sk | --sv | --sd | --ss | --kn | --base64 | --minSize | --bn");
+                var aaa = new CustomHelpAction(new HelpAction());
+                aaa.Invoke(_rootCommand.Parse("One of the following switches is required: --sa | --sk | --sv | --sd | --ss | --kn | --base64 | --minSize | --bn"));
                 Console.WriteLine();
-                Console.WriteLine();
-                Log.Information("Verify the command line and try again");
                 return;
             }
 
